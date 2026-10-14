@@ -1,0 +1,126 @@
+/* Aulaar dark theme, modeled on AULA HUB. Accent: #166dee. */
+
+QWidget {
+    color: #e6e9ef;
+    font-size: 10pt;
+}
+QMainWindow, #Content, QScrollArea, #PageBody {
+    background: #0d0f13;
+}
+QScrollArea { border: none; }
+QToolTip {
+    background: #1d222b; color: #e6e9ef; border: 1px solid #2b3240; padding: 4px 6px;
+}
+
+/* sidebar */
+#Sidebar {
+    background: #12151b;
+    border-right: 1px solid #1f242d;
+}
+#DeviceName { font-size: 13pt; font-weight: 600; }
+#DeviceMeta, #Muted, #SettingHint, #Footer { color: #8a93a6; }
+#Footer { font-size: 8pt; }
+QPushButton#NavButton {
+    text-align: left;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #b7bfcc;
+    font-size: 10.5pt;
+}
+QPushButton#NavButton:hover { background: #1a1f28; color: #e6e9ef; }
+QPushButton#NavButton:checked { background: #166dee; color: white; font-weight: 600; }
+QPushButton#NavButton:disabled { color: #4b5263; }
+
+/* page header */
+#PageTitle { font-size: 17pt; font-weight: 600; }
+#PageSubtitle { color: #8a93a6; }
+#BusyLabel { color: #5c9dff; }
+
+/* cards and rows */
+#Card {
+    background: #161a21;
+    border: 1px solid #222833;
+    border-radius: 12px;
+}
+#CardTitle { font-size: 11.5pt; font-weight: 600; }
+#SettingLabel { font-weight: 500; }
+
+/* segmented control */
+QPushButton#Segment {
+    background: #1d222b;
+    border: 1px solid #2a303c;
+    padding: 7px 12px;
+    min-width: 44px;
+    color: #c5ccd8;
+}
+QPushButton#Segment:hover { background: #242a35; }
+QPushButton#Segment:checked { background: #166dee; border-color: #166dee; color: white; font-weight: 600; }
+QPushButton#Segment:disabled { color: #4b5263; background: #171b22; border-color: #222833; }
+QPushButton#Segment:disabled:checked { background: #2a3550; color: #8a93a6; }
+QPushButton#Segment[first="true"] { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+QPushButton#Segment[last="true"] { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+/* generic buttons */
+QPushButton {
+    background: #1d222b;
+    border: 1px solid #2a303c;
+    border-radius: 8px;
+    padding: 7px 14px;
+}
+QPushButton:hover { background: #242a35; }
+QPushButton:pressed { background: #1a1f27; }
+QPushButton:disabled { color: #4b5263; }
+QPushButton#Primary { background: #166dee; border-color: #166dee; color: white; font-weight: 600; }
+QPushButton#Primary:hover { background: #2f80ff; }
+QPushButton#Danger { background: transparent; border-color: #e5484d; color: #ff6b6f; }
+QPushButton#Danger:hover { background: #3a1517; }
+
+/* DPI stage tiles */
+QPushButton#StageTile {
+    background: #161a21;
+    border: 1px solid #262c37;
+    border-radius: 12px;
+    padding: 0;
+}
+QPushButton#StageTile:hover { border-color: #3a4456; }
+QPushButton#StageTile:checked { border: 2px solid #166dee; background: #14213a; }
+
+/* sliders and spinboxes */
+QSlider::groove:horizontal { height: 6px; background: #262c37; border-radius: 3px; }
+QSlider::sub-page:horizontal { background: #166dee; border-radius: 3px; }
+QSlider::sub-page:horizontal:disabled { background: #2a3550; }
+QSlider::handle:horizontal {
+    width: 16px; height: 16px; margin: -6px 0;
+    border-radius: 8px; background: #ffffff; border: 2px solid #166dee;
+}
+QSlider::handle:horizontal:disabled { background: #8a93a6; border-color: #2a3550; }
+QSpinBox, QComboBox {
+    background: #1d222b;
+    border: 1px solid #2a303c;
+    border-radius: 6px;
+    padding: 5px 8px;
+    min-height: 20px;
+}
+QSpinBox:focus, QComboBox:focus { border-color: #166dee; }
+QComboBox QAbstractItemView { background: #1d222b; selection-background-color: #166dee; border: 1px solid #2a303c; }
+
+/* banners */
+#Banner {
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+#Banner[kind="error"] { background: #3a1517; color: #ffb3b5; border: 1px solid #5c2326; }
+#Banner[kind="info"] { background: #14213a; color: #b9d3ff; border: 1px solid #1f3a6b; }
+
+/* empty state */
+#EmptyTitle { font-size: 16pt; font-weight: 600; }
+#EmptyText { color: #8a93a6; font-size: 10.5pt; }
+#Code {
+    font-family: monospace;
+    background: #161a21;
+    border: 1px solid #222833;
+    border-radius: 6px;
+    padding: 8px 10px;
+}

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Aulaar
+GenericName=AULA Mouse Settings
+Comment=Battery, DPI, polling rate and lighting for AULA mice
+Exec=env PYTHONPATH=@APPDIR@ python3 -m aulaar
+Icon=@APPDIR@/data/aulaar.svg
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=AULA;mouse;DPI;battery;V9;
+StartupWMClass=aulaar

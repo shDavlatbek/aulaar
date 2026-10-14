@@ -1,0 +1,3 @@
+# Aulaar: let the logged-in desktop user talk to AULA (Evision) mice and receivers over hidraw.
+# 22b6 X9 series, 22b7 V9+/Pro+/Ultra+/Max+, 22b8 V9/Pro/Ultra/Max (wired), 22a0 AULA-8K Dongle, 22ba 2.4G dongle.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="22a0|22b6|22b7|22b8|22ba", TAG+="uaccess"
