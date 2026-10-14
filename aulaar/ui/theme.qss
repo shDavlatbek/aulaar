@@ -124,3 +124,11 @@ QComboBox QAbstractItemView { background: #1d222b; selection-background-color: #
     border-radius: 6px;
     padding: 8px 10px;
 }
+
+/* unsaved-changes bar */
+#ApplyBar {
+    background: #12151b;
+    border-top: 1px solid #263046;
+}
+#ApplyDot { color: #f5a524; font-size: 9pt; }
+#ApplyText { color: #e6e9ef; }

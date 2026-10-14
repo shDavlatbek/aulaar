@@ -6,12 +6,15 @@ import os
 import time
 
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QButtonGroup,
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
@@ -20,6 +23,8 @@ from PySide6.QtWidgets import (
 
 from .. import __version__
 from ..manager import DeviceManager, DeviceState
+from ..protocol import evision
+from . import draft
 from .dpi import DpiPage
 from .parameters import ParametersPage
 from .performance import PerformancePage
@@ -66,6 +71,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.manager = manager
         self.current: str | None = None
+        self.pending: draft.Changes = {}  # staged edits for the current device
+        self._applying = ""  # "" idle, "requested" sent to the worker, "running" worker busy with it
         self.keep_in_tray = True
         self._last_refresh = 0.0
         self.setWindowTitle("Aulaar")
@@ -82,6 +89,7 @@ class MainWindow(QMainWindow):
 
         manager.changed.connect(self._on_changed)
         manager.error.connect(self._on_error)
+        QShortcut(QKeySequence.Save, self, activated=self.apply_pending)
         self._update_all()
 
     # -- layout ----------------------------------------------------------------------------------
@@ -147,11 +155,34 @@ class MainWindow(QMainWindow):
         self.pages = [DpiPage(self.manager), PerformancePage(self.manager), ParametersPage(self.manager), VersionPage(self.manager)]
         self.pages_stack = QStackedWidget()
         for p in self.pages:
+            p.on_edit = self._edit
             self.pages_stack.addWidget(p)
         self.stack.addWidget(self.message)
         self.stack.addWidget(self.pages_stack)
         v.addWidget(self.stack, 1)
+        v.addWidget(self._build_apply_bar())
         return content
+
+    def _build_apply_bar(self) -> QWidget:
+        self.apply_bar = QFrame(objectName="ApplyBar")
+        h = QHBoxLayout(self.apply_bar)
+        h.setContentsMargins(32, 12, 32, 12)
+        h.setSpacing(10)
+        dot = QLabel("●", objectName="ApplyDot")
+        h.addWidget(dot)
+        self.apply_text = QLabel(objectName="ApplyText", wordWrap=True)
+        h.addWidget(self.apply_text, 1)
+        self.discard_btn = QPushButton("Discard")
+        self.discard_btn.setCursor(Qt.PointingHandCursor)
+        self.discard_btn.clicked.connect(self.discard_pending)
+        h.addWidget(self.discard_btn)
+        self.apply_btn = QPushButton("Apply", objectName="Primary")
+        self.apply_btn.setCursor(Qt.PointingHandCursor)
+        self.apply_btn.setToolTip("Write the changes to the mouse (Ctrl+S)")
+        self.apply_btn.clicked.connect(self.apply_pending)
+        h.addWidget(self.apply_btn)
+        self.apply_bar.hide()
+        return self.apply_bar
 
     # -- state -----------------------------------------------------------------------------------
 
@@ -170,6 +201,8 @@ class MainWindow(QMainWindow):
         if self.current not in self.manager.states:
             preferred = self.manager.preferred()
             self.current = preferred.key if preferred else None
+            self.pending = {}
+            self._applying = ""
         self.picker.blockSignals(True)
         self.picker.clear()
         for s in states:
@@ -183,7 +216,14 @@ class MainWindow(QMainWindow):
     def _picked(self, index: int) -> None:
         key = self.picker.itemData(index)
         if key and key != self.current:
+            if not self._confirm_discard("switching devices"):
+                self.picker.blockSignals(True)
+                self.picker.setCurrentIndex(self.picker.findData(self.current))
+                self.picker.blockSignals(False)
+                return
             self.current = key
+            self.pending = {}
+            self._applying = ""
             self._update_current()
             self.trayChanged.emit()
 
@@ -203,14 +243,23 @@ class MainWindow(QMainWindow):
                 "Supported: V9, V9+, V9 Pro/Pro+, V9 Ultra/Ultra+, V9 Max/Max+, X9 series.",
             )
             self.stack.setCurrentWidget(self.message)
+            self.pending = {}
+            self._applying = ""
+            self._update_apply_bar(None)
             return
 
         self.device_name.setText(st.name)
-        self.busy.setText("Syncing with mouse…" if st.busy else "")
+        if st.busy:
+            self.busy.setText("Syncing with mouse…")
+        elif self.busy.text() == "Syncing with mouse…":
+            self.busy.setText("")
         s = st.settings
         glow = None
         if s is not None and 0 <= s.active_stage < len(s.stages):
             glow = s.stages[s.active_stage].color
+        preview = draft.apply_changes(s, self.pending) if s is not None else None
+        if preview is not None and 0 <= preview.active_stage < len(preview.stages):
+            glow = preview.stages[preview.active_stage].color
         self.hero.set(st.battery, glow, not st.online)
         meta = [st.link_name]
         if st.link_name == "2.4G":
@@ -250,9 +299,105 @@ class MainWindow(QMainWindow):
             self.message.show_message("Couldn't read the settings", st.error or "Try again in a moment.")
             self.stack.setCurrentWidget(self.message)
         else:
-            for p in self.pages:
-                p.set_state(st)
+            self.pending = draft.prune(s, self.pending)
+            self._render_pages(st)
             self.stack.setCurrentWidget(self.pages_stack)
+        self._update_apply_bar(st)
+
+    # -- pending changes -------------------------------------------------------------------------
+
+    def _render_pages(self, st: DeviceState) -> None:
+        preview = draft.apply_changes(st.settings, self.pending) if st.settings is not None else None
+        for p in self.pages:
+            p.set_state(st, preview)
+
+    def _edit(self, fn) -> None:
+        """A page changed something: stage it on top of what the mouse reports."""
+        st = self.state()
+        if st is None or st.settings is None:
+            return
+        edited = draft.apply_changes(st.settings, self.pending)
+        fn(edited)
+        self.pending = draft.diff(st.settings, edited)
+        self._render_pages(st)
+        self._update_apply_bar(st)
+        self._update_hero_preview(st)
+
+    def _update_hero_preview(self, st: DeviceState) -> None:
+        preview = draft.apply_changes(st.settings, self.pending)
+        glow = preview.stages[preview.active_stage].color if 0 <= preview.active_stage < len(preview.stages) else None
+        self.hero.set(st.battery, glow, not st.online)
+
+    def _update_apply_bar(self, st: DeviceState | None) -> None:
+        if st is not None and self._applying:
+            if st.busy:
+                self._applying = "running"
+            elif self._applying == "running":
+                self._applying = ""
+                if not self.pending and st.error is None:
+                    self._flash("Saved to the mouse ✓")
+        has = bool(self.pending) and st is not None and st.online and st.settings is not None
+        self.apply_bar.setVisible(has)
+        if not has:
+            return
+        names = draft.labels(self.pending)
+        count = len(names)  # per setting, not per byte (e.g. Wave also flips the "colorful" flag)
+        self.apply_text.setText(
+            f"{count} unsaved change{'s' if count != 1 else ''}: {', '.join(names)}"
+        )
+        busy = st.busy or bool(self._applying)
+        self.apply_btn.setEnabled(not busy)
+        self.discard_btn.setEnabled(not busy)
+        self.apply_btn.setText("Applying…" if busy else "Apply")
+
+    def apply_pending(self) -> None:
+        st = self.state()
+        if not self.pending or st is None or st.settings is None or not st.online or st.busy:
+            return
+        changes = dict(self.pending)
+        problems = evision.validate(draft.apply_changes(st.settings, changes))
+        known = set(evision.validate(st.settings))
+        if bad := [p for p in problems if p not in known]:
+            self._on_error(st.key, "Can't apply: " + ", ".join(bad))
+            return
+        self._applying = "requested"
+        count = len(changes)
+        self.manager.apply(
+            st.key,
+            lambda s: draft.apply_changes(s, changes),
+            f"Saving {count} change{'s' if count != 1 else ''}",
+        )
+        self.apply_btn.setEnabled(False)
+        self.discard_btn.setEnabled(False)
+        self.apply_btn.setText("Applying…")
+
+    def discard_pending(self) -> None:
+        st = self.state()
+        self.pending = {}
+        if st is not None and st.settings is not None:
+            self._render_pages(st)
+            self._update_hero_preview(st)
+        self._update_apply_bar(st)
+
+    def _confirm_discard(self, action: str) -> bool:
+        if not self.pending:
+            return True
+        answer = QMessageBox.question(
+            self,
+            "Unsaved changes",
+            f"You have unsaved changes. Discard them before {action}?",
+            QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        return answer == QMessageBox.Discard
+
+    def factory_reset(self, key: str) -> None:
+        self.pending = {}
+        self.manager.factory_reset(key)
+
+    def _flash(self, text: str) -> None:
+        self.busy.setText(text)
+        QTimer.singleShot(3000, lambda: self.busy.text() == text and self.busy.setText(""))
 
     def _navigate(self, index: int) -> None:
         self.pages_stack.setCurrentIndex(index)

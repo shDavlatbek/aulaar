@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 from typing import Callable
 
 from PySide6.QtCore import Qt
@@ -10,17 +9,6 @@ from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from ..manager import DeviceManager, DeviceState
 from ..protocol import evision
-
-
-def mutate(fn: Callable[[evision.Settings], None]) -> Callable[[evision.Settings], evision.Settings]:
-    """Turn an in-place edit into the pure Settings -> Settings change the manager expects."""
-
-    def change(settings: evision.Settings) -> evision.Settings:
-        new = copy.deepcopy(settings)
-        fn(new)
-        return new
-
-    return change
 
 
 class Page(QScrollArea):
@@ -31,6 +19,8 @@ class Page(QScrollArea):
         super().__init__()
         self.manager = manager
         self.state: DeviceState | None = None
+        self.draft: evision.Settings | None = None  # device settings with pending edits on top
+        self.on_edit: Callable[[Callable[[evision.Settings], None]], None] | None = None
         self._loading = False
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -52,13 +42,14 @@ class Page(QScrollArea):
     def build(self) -> None:
         raise NotImplementedError
 
-    def set_state(self, state: DeviceState) -> None:
+    def set_state(self, state: DeviceState, draft: evision.Settings | None) -> None:
         self.state = state
-        if state.settings is None:
+        self.draft = draft
+        if draft is None:
             return
         self._loading = True
         try:
-            self.load(state, state.settings)
+            self.load(state, draft)
         finally:
             self._loading = False
 
@@ -66,7 +57,7 @@ class Page(QScrollArea):
         raise NotImplementedError
 
     def change(self, what: str, fn: Callable[[evision.Settings], None]) -> None:
-        """Send an edit to the mouse (ignored while the page is being filled from device state)."""
-        if self._loading or self.state is None or self.state.settings is None:
+        """Stage an edit (applied to the mouse only when the user presses Apply)."""
+        if self._loading or self.draft is None or self.on_edit is None:
             return
-        self.manager.apply(self.state.key, mutate(fn), what)
+        self.on_edit(fn)

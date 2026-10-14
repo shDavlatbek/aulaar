@@ -1,14 +1,18 @@
-# Aulaar
+# Aulaar: AULA mouse software for Linux
 
-A Linux settings app for AULA gaming mice, in the spirit of [Solaar](https://github.com/pwr-Solaar/Solaar),
-that does what the AULA HUB web driver does without Chrome or WebHID.
+**Aulaar** is a native Linux app for **AULA gaming mice**. It's an open-source alternative to the
+**AULA HUB** web driver, and works without Chrome or WebHID, the way
+[Solaar](https://github.com/pwr-Solaar/Solaar) does for Logitech. It reads the battery level and
+configures DPI, polling rate (up to 8000 Hz), lift-off distance, motion sync, angle snapping and
+lighting, over the USB cable or the **AULA 8K Dongle** (2.4 GHz).
 
 Supported mice:
 - AULA **V9 Ultra+** (the main target)
 - V9 / V9+ / V9 Pro / V9 Pro+ / V9 Ultra / V9 Max / V9 Max+
 - X9 / X9 Pro / X9 Ultra / X9 Max
 
-They work over the USB cable or through the **AULA-8K Dongle**.
+These all use the Evision protocol, with USB IDs `320f:22b7`, `320f:22b8`, `320f:22b6` and dongle
+`320f:22a0`.
 
 ## Features
 
@@ -36,7 +40,9 @@ They work over the USB cable or through the **AULA-8K Dongle**.
     15% or lower.
   - Closing the window keeps Aulaar in the tray; *Quit* in the tray menu exits.
 
-Changes are written to the mouse immediately, like AULA HUB. Before the first write, Aulaar saves the
+Changes are staged first. A bar at the bottom lists what you changed, with **Apply** (Ctrl+S) and
+**Discard** buttons. Apply writes only the settings you touched onto a fresh read of the mouse, so a DPI
+button press made in the meantime isn't overwritten. Before the very first write, Aulaar saves the
 mouse's original 128-byte settings block to `~/.config/aulaar/`. Firmware updating is deliberately not
 implemented.
 

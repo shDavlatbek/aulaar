@@ -37,8 +37,8 @@ class VersionPage(Page):
         self.reset_btn.clicked.connect(self._reset)
         reset.add(SettingRow("Reset the mouse", self.reset_btn, "This cannot be undone from the mouse itself."))
 
-    def set_state(self, state: DeviceState) -> None:
-        super().set_state(state)
+    def set_state(self, state: DeviceState, draft: evision.Settings | None) -> None:
+        super().set_state(state, draft)
         st = state.status
         self.values["Model"].setText(state.name + (f"  (config {st.config_id})" if st and st.config_id is not None else ""))
         self.values["Connection"].setText("2.4G via " + state.product_name if state.link == evision.WIRELESS else "USB cable")
@@ -61,4 +61,8 @@ class VersionPage(Page):
             QMessageBox.Cancel,
         )
         if answer == QMessageBox.Reset:
-            self.manager.factory_reset(self.state.key)
+            window = self.window()
+            if hasattr(window, "factory_reset"):
+                window.factory_reset(self.state.key)
+            else:
+                self.manager.factory_reset(self.state.key)

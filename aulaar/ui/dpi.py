@@ -48,7 +48,7 @@ class StageTile(QPushButton):
 
 class DpiPage(Page):
     title = "DPI Settings"
-    subtitle = "Click a stage to make it active; the DPI button on the mouse cycles through them. Changes are saved to the mouse right away."
+    subtitle = "Click a stage to make it active and edit it; the DPI button on the mouse cycles through the stages."
 
     def build(self) -> None:
         tiles = QWidget()
@@ -82,7 +82,7 @@ class DpiPage(Page):
         self.add(self.editor)
 
     def _active(self) -> int:
-        s = self.state.settings if self.state else None
+        s = self.draft
         return s.active_stage if s and 0 <= s.active_stage < evision.NUM_STAGES else 0
 
     def load(self, state: DeviceState, s: evision.Settings) -> None:
@@ -120,9 +120,6 @@ class DpiPage(Page):
             if not on:
                 st.y = st.x
 
-        self.row_both.setVisible(not on)
-        self.row_x.setVisible(on)
-        self.row_y.setVisible(on)
         self._stage_edit("Saving X/Y mode", edit)
 
     def _dpi(self, x: int | None = None, y: int | None = None) -> None:
